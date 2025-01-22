@@ -2,7 +2,15 @@ from utils import load_words, read_ciphertexts
 from xor_helpers import xor
 from decrypt import auto_crib_drag
 from pprint import pprint
-import string
+import time
+from GeneralizedSuffixArray.GeneralizedSuffixArray import GeneralizedSuffixArray
+from GeneralizedSuffixArray.utils import save_suffix_array
+import psutil
+import os
+
+# Lower the priority of the process
+p = psutil.Process(os.getpid())
+p.nice(psutil.IDLE_PRIORITY_CLASS)  # On Windows
 
 
 def construct_dict():
@@ -10,11 +18,11 @@ def construct_dict():
 
     word_path = 'dictionary/english-words'
     words.append(load_words(f'{word_path}.10', words))
-    # words.append(load_words(f'{word_path}.20', words))
-    # words.append(load_words(f'{word_path}.35', words))
-    # words.append(load_words(f'{word_path}.50', words))
-    # words.append(load_words(f'{word_path}.70', words))
-    # words.append(load_words(f'{word_path}.95', words))
+    words.append(load_words(f'{word_path}.20', words))
+    words.append(load_words(f'{word_path}.35', words))
+    words.append(load_words(f'{word_path}.50', words))
+    words.append(load_words(f'{word_path}.70', words))
+    words.append(load_words(f'{word_path}.95', words))
 
     return words
 
@@ -30,6 +38,14 @@ def main():
     filename = "ciphertexts.txt"
     ciphertexts = read_ciphertexts(filename)
     words = construct_dict()
+    print(f"Constructing GSA")
+    start_time = time.perf_counter()
+    gsa = GeneralizedSuffixArray(words[4])
+    end_time = time.perf_counter()
+    print(f"Completed in: {end_time - start_time:.6f} seconds")
+
+    save_suffix_array(gsa.suffix_array, gsa.words,
+                      f"GeneralizedSuffixArray/suffix_array4.pkl")
 
     if len(ciphertexts) < 2:
         print("Need at least two ciphertexts. Exiting.")
@@ -52,7 +68,7 @@ def main():
 
     pprint(xor_data)
     # Begin automatic crib dragging
-    auto_crib_drag(words[0], xor_data, len_ct)
+    auto_crib_drag(words[0], xor_data, len_ct, gsa)
 
 
 if __name__ == "__main__":

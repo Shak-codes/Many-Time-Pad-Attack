@@ -1,10 +1,11 @@
 from xor_helpers import generate_xor_labels, generate_xor_slices, xor
 from utils import is_printable_ascii
 from pprint import pprint
+from GeneralizedSuffixArray.GeneralizedSuffixArray import GeneralizedSuffixArray
 import string
 
 
-def auto_crib_drag(words, xor_data, len_ct):
+def auto_crib_drag(words, xor_data, len_ct, suffix_array):
     """
     Automatically crib drags words over the XOR'd ciphertexts.
     There are three scenarios we could come across during this,
@@ -21,7 +22,7 @@ def auto_crib_drag(words, xor_data, len_ct):
         max_offset = len_ct - crib_len + 1
 
         # Debugging purposes
-        print(f"Crib dragging '{crib}' across {labels}")
+        # print(f"Crib dragging '{crib}' across {labels}")
         matches = []
 
         for offset in range(max_offset):
@@ -32,7 +33,7 @@ def auto_crib_drag(words, xor_data, len_ct):
                 # print(f"crib: {crib} - length: {crib_len}")
                 # print(f"slice: {slice_data["name"]} - length: {len(slice_data["slice"])}")
                 plaintext = xor(slice_data["slice"], crib)
-                if not is_printable_ascii(plaintext):
+                if not is_printable_ascii(plaintext) or not suffix_array.substring_exists(plaintext):
                     potential_match = False
                     break
             if potential_match:
