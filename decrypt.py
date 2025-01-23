@@ -29,14 +29,24 @@ def auto_crib_drag(words, xor_data, len_ct, suffix_array):
             xor_slices = generate_xor_slices(xor_data, offset, crib_len)
             potential_match = True
             for slice_data in xor_slices:
-                # print(f"offset: {offset} - max_offset: {max_offset}")
-                # print(f"crib: {crib} - length: {crib_len}")
-                # print(f"slice: {slice_data["name"]} - length: {len(slice_data["slice"])}")
                 plaintext = xor(slice_data["slice"], crib)
-                if not is_printable_ascii(plaintext) or not suffix_array.substring_exists(plaintext):
-                    potential_match = False
-                    break
+                pt_words = plaintext.split()
+                if crib.decode("utf-8") == "grasshopper" and offset == 91:
+                    print(f"crib: {crib} - length: {crib_len}")
+                    print(f"offset: {offset}")
+                    print(f"slice: {slice_data["name"]} - length: {len(slice_data["slice"])}")
+                    print(f"Plaintext: {plaintext}\n")
+                for word in pt_words:
+                    if crib.decode("utf-8") == "grasshopper" and offset == 91:
+                        print(
+                            f"Is {word} a substring of another word? Answer: {suffix_array.substring_exists(word)}")
+                    if not is_printable_ascii(word) or not suffix_array.substring_exists(word):
+                        potential_match = False
+                        break
+                    if crib.decode("utf-8") == "grasshopper" and offset == 91:
+                        print(f"{word} is a substring of another word!")
             if potential_match:
                 print(
                     f"{crib} is a potential match at index [{offset}:{offset+crib_len}]!")
                 break
+    print("Finished looking for potential matches!")

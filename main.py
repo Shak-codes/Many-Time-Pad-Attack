@@ -4,8 +4,8 @@ from decrypt import auto_crib_drag
 from pprint import pprint
 import time
 from GeneralizedSuffixArray.GeneralizedSuffixArray import GeneralizedSuffixArray
-from GeneralizedSuffixArray.utils import save_suffix_array
-import psutil
+from GeneralizedSuffixArray.utils import save_suffix_array, load_suffix_array
+import psutil  # type: ignore
 import os
 
 # Lower the priority of the process
@@ -38,15 +38,11 @@ def main():
     filename = "ciphertexts.txt"
     ciphertexts = read_ciphertexts(filename)
     words = construct_dict()
-    print(f"Constructing GSA")
-    start_time = time.perf_counter()
-    gsa = GeneralizedSuffixArray(words[4])
-    end_time = time.perf_counter()
-    print(f"Completed in: {end_time - start_time:.6f} seconds")
 
-    save_suffix_array(gsa.suffix_array, gsa.words,
-                      f"GeneralizedSuffixArray/suffix_array4.pkl")
+    gsa = GeneralizedSuffixArray(
+        set.union(*words), ["GeneralizedSuffixArray/suffix_array0.pkl", "GeneralizedSuffixArray/suffix_array1.pkl", "GeneralizedSuffixArray/suffix_array2.pkl", "GeneralizedSuffixArray/suffix_array3.pkl", "GeneralizedSuffixArray/suffix_array4.pkl"])
 
+    print(gsa.substring_exists("hel"))
     if len(ciphertexts) < 2:
         print("Need at least two ciphertexts. Exiting.")
         return
@@ -63,7 +59,7 @@ def main():
             break
         xor_data[f"p{idx+1}"] = {}
         for jdx in range(idx + 1, len(ciphertexts)):
-            xor_data[f"p{idx+1}"][f"p{jdx+1}"] = {"name": f"x{jdx}{jdx+1}",
+            xor_data[f"p{idx+1}"][f"p{jdx+1}"] = {"name": f"x{idx+1}{jdx+1}",
                                                   "result": xor(ct, ciphertexts[jdx])}
 
     pprint(xor_data)
