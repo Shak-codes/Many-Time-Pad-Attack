@@ -1,48 +1,47 @@
 #include <iostream>
-#include <nlohmann/json.hpp>  // JSON library (https://github.com/nlohmann/json)
 #include <string>
 #include <vector>
 
+#include "../lib/json.hpp"
 #include "SfxTrie.h"
 
 using json = nlohmann::json;
 
-int main(int argc, char* argv[]) {
-  if (argc < 3) {
-    std::cerr << "Usage: ./sfxtrie <file_path> <command> [suffix]" << std::endl;
-    return 1;
-  }
+int main() {
+  // Load the suffix trie once
+  SfxTrie trie("dictionary/english-words.all");
+  std::cerr << "Trie loaded. Waiting for commands...\n";
 
-  std::string file_path = argv[1];  // Path to the word file
-  std::string command = argv[2];    // Command: "search" or "count"
-  std::string suffix;
+  std::string line;
+  while (std::getline(std::cin, line)) {
+    try {
+      // Parse input JSON
+      json input = json::parse(line);
+      std::string command = input["command"];
+      std::string suffix = input["suffix"];
+      json output;
 
-  if (command == "search" || command == "count") {
-    if (argc < 4) {
-      std::cerr << "Suffix is required for 'search' or 'count' command."
-                << std::endl;
-      return 1;
+      if (command == "search") {
+        // Execute search
+        std::vector<int> results = trie.search(suffix);
+        output = results;  // Convert vector to JSON array
+      } else if (command == "count") {
+        // Execute countWordsWithSuffix
+        int count = trie.countWordsWithSuffix(suffix);
+        output = {{"count", count}};
+      } else {
+        output = {{"error", "Invalid command"}};
+      }
+
+      // Output JSON response
+      std::cout << output.dump() << std::endl;
+    } catch (const std::exception& e) {
+      // Handle errors gracefully
+      std::cerr << "Error: " << e.what() << std::endl;
+      std::cout << json({{"error", "Invalid input"}}).dump() << std::endl;
     }
-    suffix = argv[3];
   }
 
-  // Load the suffix trie
-  SfxTrie trie("../dictionary/english-words.all");
-
-  if (command == "search") {
-    // Execute search and output the results as a JSON array
-    std::vector<int> results = trie.search(suffix);
-    json output = results;  // Convert vector to JSON array
-    std::cout << output.dump() << std::endl;
-  } else if (command == "count") {
-    // Execute countWordsWithSuffix and output the result as JSON
-    int count = trie.countWordsWithSuffix(suffix);
-    json output = {{"count", count}};
-    std::cout << output.dump() << std::endl;
-  } else {
-    std::cerr << "Invalid command. Use 'search' or 'count'." << std::endl;
-    return 1;
-  }
-
+  std::cerr << "Shutting down...\n";
   return 0;
 }

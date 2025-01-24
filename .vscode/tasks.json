@@ -15,8 +15,7 @@
                 "${workspaceFolder}/SfxTrie/SfxTrie.test.exe"
             ],
             "group": {
-                "kind": "build",
-                "isDefault": true
+                "kind": "build"
             },
             "problemMatcher": ["$gcc"],
             "detail": "Generated task for building SfxTrieTest"
@@ -32,7 +31,27 @@
                 "focus": false,
                 "panel": "shared"
             }
-        }
+        },
+        {
+            "label": "Build and Run SfxTrieTest",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-std=c++17",
+                "-Wall",
+                "-g",
+                "${workspaceFolder}/SfxTrie/SfxTrie.cc",
+                "${workspaceFolder}/SfxTrie/main.cc",
+                "-o",
+                "${workspaceFolder}/SfxTrie.exe"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "detail": "Generated task for building SfxTrieTest"
+        },
     ]
 }
 
