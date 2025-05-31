@@ -2,17 +2,17 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build and Run SfxTrieTest",
+            "label": "Build and Run WordTrieTest",
             "type": "shell",
             "command": "g++",
             "args": [
                 "-std=c++17",
                 "-Wall",
                 "-g",
-                "${workspaceFolder}/SfxTrie/SfxTrie.test.cc",
-                "${workspaceFolder}/SfxTrie/SfxTrie.cc",
+                "${workspaceFolder}/WordTrie/WordTrie.test.cc",
+                "${workspaceFolder}/WordTrie/WordTrie.cc",
                 "-o",
-                "${workspaceFolder}/SfxTrie/SfxTrie.test.exe"
+                "${workspaceFolder}/WordTrie/WordTrie.test.exe"
             ],
             "group": {
                 "kind": "build"
@@ -33,17 +33,17 @@
             }
         },
         {
-            "label": "Build and Run SfxTrieTest",
+            "label": "Build and Run WordTrie",
             "type": "shell",
             "command": "g++",
             "args": [
                 "-std=c++17",
                 "-Wall",
                 "-g",
-                "${workspaceFolder}/SfxTrie/SfxTrie.cc",
-                "${workspaceFolder}/SfxTrie/main.cc",
+                "${workspaceFolder}/WordTrie/WordTrie.cc",
+                "${workspaceFolder}/WordTrie/main.cc",
                 "-o",
-                "${workspaceFolder}/SfxTrie.exe"
+                "${workspaceFolder}/WordTrie.exe"
             ],
             "group": {
                 "kind": "build",

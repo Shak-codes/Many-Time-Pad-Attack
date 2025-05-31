@@ -1,4 +1,21 @@
 import string
+from itertools import islice
+
+
+def split_set(s, n):
+    """ Splits a set into `n` roughly equal contiguous parts. """
+    s = list(s)  # Convert set to list to maintain order
+    chunk_size = len(s) // n
+    remainder = len(s) % n  # Some chunks may need an extra word
+
+    chunks = []
+    start = 0
+    for i in range(n):
+        end = start + chunk_size + (1 if i < remainder else 0)
+        chunks.append(set(s[start:end]))
+        start = end
+
+    return chunks
 
 
 def load_words(file_path, previous_words=[]):
@@ -92,10 +109,13 @@ def is_printable_ascii(s):
     - Do not have unsupported symbols or numbers at the start or end (except for ', . ').
     - Do not have random numbers or unsupported symbols between letters.
     """
-    text = s.decode(
-        'utf-8', errors='ignore')  # Decode bytes to string, ignoring errors
+    try:
+        text = s.decode(
+            'utf-8')  # Decode bytes to string, ignoring errors
+    except:
+        return False
     punc = r'[!,.:;\'"?]'
-    allowed_characters = string.ascii_letters + string.digits + punc + " "
+    allowed_characters = string.ascii_letters + punc + " "
 
     # Ensure all characters are printable ASCII
     if not all(c in allowed_characters for c in text):
@@ -103,26 +123,15 @@ def is_printable_ascii(s):
 
     return True
 
-# def generate_plaintext_slices(xor_slices, crib):
-#     """
-#     Generate plaintext slices using XOR slices and a known crib (part of plaintext).
 
-#     Args:
-#         xor_slices (list): A list of dictionaries containing:
-#                            - "name": Name of the XOR pair (e.g., "x12").
-#                            - "slice": A sliced XOR'd result as bytes.
-#         crib (bytes): A known slice of plaintext (e.g., part of p1).
-
-#     Returns:
-#         dict: A dictionary mapping plaintext labels to the calculated slices.
-#     """
-#     plaintext_slices = {}
-
-#     for xor_slice in xor_slices:
-#         name = xor_slice["name"]
-#         xor_result = xor_slice["slice"]
-#         # Extract "p2", "p3", etc., from "x12", "x13", etc.
-#         plaintext_label = f"p{name[1]}"
-#         plaintext_slices[plaintext_label] = xor(xor_result, crib)
-
-#     return plaintext_slices
+def valid_string(send_command, slice, word, dict):
+    is_word = word in dict
+    if not is_printable_ascii(word) or len(send_command(
+            "search", word.decode("utf-8"))) == 0:
+        return False
+    idx = slice.find(word)
+    if slice[idx-1] == " " and\
+            slice[idx + len(word) - 1] == " " and\
+            not is_word:
+        return False
+    return True

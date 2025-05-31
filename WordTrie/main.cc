@@ -3,13 +3,13 @@
 #include <vector>
 
 #include "../lib/json.hpp"
-#include "SfxTrie.h"
+#include "WordTrie.h"
 
 using json = nlohmann::json;
 
 int main() {
   // Load the suffix trie once
-  SfxTrie trie("dictionary/english-words.all");
+  WordTrie trie("dictionary/english-words.all");
   std::cerr << "Trie loaded. Waiting for commands...\n";
 
   std::string line;
@@ -18,16 +18,21 @@ int main() {
       // Parse input JSON
       json input = json::parse(line);
       std::string command = input["command"];
-      std::string suffix = input["suffix"];
+      std::string type = input["type"];
+      std::string string = input["string"];
       json output;
 
-      if (command == "search") {
-        // Execute search
-        std::vector<int> results = trie.search(suffix);
-        output = results;  // Convert vector to JSON array
-      } else if (command == "count") {
-        // Execute countWordsWithSuffix
-        int count = trie.countWordsWithSuffix(suffix);
+      if (command == "search" && type == "prefix") {
+        std::vector<int> results = trie.searchPrefix(string);
+        output = results;
+      } else if (command == "search" && type == "suffix") {
+        std::vector<int> results = trie.searchSuffix(string);
+        output = results;
+      } else if (command == "count" && type == "prefix") {
+        int count = trie.countWordsWithPrefix(string);
+        output = {{"count", count}};
+      } else if (command == "count" && type == "suffix") {
+        int count = trie.countWordsWithSuffix(string);
         output = {{"count", count}};
       } else {
         output = {{"error", "Invalid command"}};

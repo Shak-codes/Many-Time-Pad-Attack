@@ -1,12 +1,11 @@
-from utils import load_words, read_ciphertexts
+from utils import load_words, read_ciphertexts, split_set
 from xor_helpers import xor
 from decrypt import auto_crib_drag
 from pprint import pprint
 import time
-from GeneralizedSuffixArray.GeneralizedSuffixArray import GeneralizedSuffixArray
-from GeneralizedSuffixArray.utils import save_suffix_array, load_suffix_array
 import psutil  # type: ignore
 import os
+from multiprocessing import Pool, Lock, Value
 
 # Lower the priority of the process
 p = psutil.Process(os.getpid())
@@ -23,6 +22,7 @@ def construct_dict():
     words.append(load_words(f'{word_path}.50', words))
     words.append(load_words(f'{word_path}.70', words))
     words.append(load_words(f'{word_path}.95', words))
+    words.append(set().union(*words))
 
     return words
 
@@ -35,14 +35,12 @@ def main():
       - Attempt automatic combination testing
       - Jump to the interactive approach at user request
     """
+    num_processes = os.cpu_count()  # Number of processes
+
     filename = "ciphertexts.txt"
     ciphertexts = read_ciphertexts(filename)
     words = construct_dict()
 
-    gsa = GeneralizedSuffixArray(
-        set.union(*words), ["GeneralizedSuffixArray/suffix_array0.pkl", "GeneralizedSuffixArray/suffix_array1.pkl", "GeneralizedSuffixArray/suffix_array2.pkl", "GeneralizedSuffixArray/suffix_array3.pkl", "GeneralizedSuffixArray/suffix_array4.pkl"])
-
-    print(gsa.substring_exists("hel"))
     if len(ciphertexts) < 2:
         print("Need at least two ciphertexts. Exiting.")
         return
@@ -57,14 +55,35 @@ def main():
     for idx, ct in enumerate(ciphertexts):
         if idx + 1 == len(ciphertexts):
             break
-        xor_data[f"p{idx+1}"] = {}
+        if f"p{idx+1}" not in xor_data:
+            xor_data[f"p{idx+1}"] = {}
         for jdx in range(idx + 1, len(ciphertexts)):
+            if f"p{jdx+1}" not in xor_data:
+                xor_data[f"p{jdx+1}"] = {}
+            if f"p{jdx+1}" not in xor_data[f"p{idx+1}"]:
+                xor_data[f"p{idx+1}"][f"p{jdx+1}"] = {}
             xor_data[f"p{idx+1}"][f"p{jdx+1}"] = {"name": f"x{idx+1}{jdx+1}",
+                                                  "result": xor(ct, ciphertexts[jdx])}
+            xor_data[f"p{jdx+1}"][f"p{idx+1}"] = {"name": f"x{idx+1}{jdx+1}",
                                                   "result": xor(ct, ciphertexts[jdx])}
 
     pprint(xor_data)
-    # Begin automatic crib dragging
-    auto_crib_drag(words[0], xor_data, len_ct, gsa)
+
+    start_time = time.perf_counter()
+    split_sets = split_set(words[0], num_processes)
+    with Pool(processes=num_processes) as pool:
+        tasks = [
+            (split_sets[i], xor_data, len_ct, len(ciphertexts), words[6])
+            for i in range(num_processes)
+        ]
+        results = pool.starmap(auto_crib_drag, tasks)
+        total_matches = 0
+        for matches in results:
+            total_matches += matches
+        print(f"Found {total_matches} total potential matches!")
+    # auto_crib_drag(words[0], xor_data, len_ct, len(ciphertexts), words[6])
+    end_time = time.perf_counter()
+    print(f"Execution time: {end_time - start_time:.6f} seconds")
 
 
 if __name__ == "__main__":
