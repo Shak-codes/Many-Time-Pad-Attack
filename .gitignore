@@ -1,0 +1,13 @@
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Run output
+recovered.txt
+
+# Editor / tooling
+.xray/
+.xrayignore
+
+# Unused duplicate build artifact (code uses WordTrie.exe)
+WordTrie2.exe

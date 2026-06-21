@@ -1,10 +1,14 @@
-from utils import is_printable_ascii, valid_string
+from utils import is_printable_ascii, valid_string, valid_res
 import subprocess
 import json
+import os
 
-# Start the C++ process
+# Start the C++ process. Resolve to an absolute path: Windows CreateProcess does
+# not search the current working directory for a bare filename, so passing just
+# "WordTrie.exe" fails unless it happens to be on PATH.
+WORDTRIE_EXE = os.path.abspath("WordTrie.exe")
 process = subprocess.Popen(
-    "sfxtrie.exe",
+    WORDTRIE_EXE,
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -16,15 +20,42 @@ startup_message = process.stdout.readline().strip()
 print(f"Startup Message: {startup_message}")
 
 
-def send_command(command, suffix):
-    # Send a command to the C++ process
-    input_data = json.dumps({"command": command, "suffix": suffix})
+# Memoize responses: crib-dragging issues the same prefix/suffix queries over
+# and over, and each one is a subprocess round-trip.
+_command_cache = {}
+
+
+def send_command(command, type_, string):
+    """
+    Send a command to the C++ process and return the parsed JSON response.
+
+    Args:
+        command (str): "search" or "count"
+        type_ (str): "prefix" or "suffix"
+        string (str): the input string to search/count
+
+    Returns:
+        dict or list: JSON-decoded result from the C++ program
+    """
+    key = (command, type_, string)
+    cached = _command_cache.get(key)
+    if cached is not None:
+        return cached
+
+    # Construct and send JSON input
+    input_data = json.dumps({
+        "command": command,
+        "type": type_,
+        "string": string
+    })
     process.stdin.write(input_data + "\n")
     process.stdin.flush()
 
-    # Read the response
+    # Read and decode response
     response = process.stdout.readline()
-    return json.loads(response)
+    result = json.loads(response)
+    _command_cache[key] = result
+    return result
 
 
 def xor(bytes_seq1, bytes_seq2):
@@ -133,6 +164,7 @@ def generate_xor_slices(xor_data, offset, crib_len):
             slice_result = details["result"][offset:offset + crib_len]
             xor_slices[outer_key][inner_key] = {
                 "name": details["name"], "slice": slice_result}
+    # print(xor_slices)
     return xor_slices
 
 
@@ -153,24 +185,19 @@ def substring_in_xor_slices(xor_slices, substring, n):
     # Decode the substring to bytes for comparison
     substring_bytes = substring.encode()
 
-    # Create a mapping of each number to the XOR results it participates in
     num_to_xors = {i: [] for i in range(1, n + 1)}
 
-    # Parse the input and map each "name" to the involved numbers
     for xor_slice in xor_slices:
         xor_name = xor_slice["name"]
         xor_result = xor_slice["slice"]
 
-        # Extract the numbers from the XOR name (e.g., "x12" -> [1, 2])
         numbers = [int(x) for x in xor_name[1:]]
 
-        # Map XOR results to the numbers
         for num in numbers:
             num_to_xors[num].append(xor_result)
 
     print(num_to_xors)
 
-    # Check each group for the substring
     for num, xor_list in num_to_xors.items():
         count = sum(
             1 for xor_result in xor_list if substring_bytes in xor_result)
@@ -181,26 +208,51 @@ def substring_in_xor_slices(xor_slices, substring, n):
 
 
 def potential_match(xor_slices, crib, offset, dict):
+    """Check if a crib decrypts to potential matches in XOR slices.
+
+    Args:
+        xor_slices: Dictionary of XOR slices to check against
+        crib: Known plaintext string to search for
+        offset: Starting position to consider in the slices
+        dictionary: Dictionary for validation
+
+    Returns:
+        List of dictionaries containing potential matches with their details
+    """
     results = []
     for outer_key in xor_slices.keys():
-        plaintexts = []
+        # If `crib` really is the plaintext of `outer_key` at this offset, then
+        # xor(crib, slice_of(outer ^ inner)) reveals the plaintext slice of
+        # every other message. Collect those revealed slices keyed by inner_key.
+        derived = {}
         p_match = True
         for inner_key, details in xor_slices[outer_key].items():
             pt_slice = xor(details["slice"], crib)
             pt_words = pt_slice.split()
-            for word in pt_words:
-                p_match = valid_string(
-                    send_command, pt_slice, word, dict)
+            for idx, word in enumerate(pt_words):
+                if not idx:
+                    p_match = valid_string(send_command, pt_slice, word, dict)
+                else:
+                    p_match = valid_string(
+                        send_command, pt_slice, word, dict, "prefix")
                 if p_match == False:
                     break
             if not p_match:
                 break
-            plaintexts.append(pt_slice)
+            derived[inner_key] = pt_slice
         if p_match:
-            results.append(True)
+            results.append({
+                "crib": crib.decode("utf-8", "replace"),
+                "plaintext": outer_key,
+                "start": offset,
+                "end": offset + len(crib),
+                # Revealed plaintext slices of the other messages, ready to be
+                # aggregated during reconstruction.
+                "derived": {
+                    k: v.decode("utf-8", "replace") for k, v in derived.items()
+                },
+            })
             print(
                 f"{crib} is potentially a string in {outer_key} at index [{offset}:{offset+len(crib)}]!")
-            print(plaintexts)
-        else:
-            results.append(False)
+            print(list(derived.values()))
     return results

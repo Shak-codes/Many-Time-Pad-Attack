@@ -14,21 +14,20 @@ def auto_crib_drag(words, xor_data, len_ct, num_ct, dict):
     """
 
     labels = generate_xor_labels(xor_data)
-    matches = set()
+    matches = []
 
     for word in sorted(words):
         crib = word.encode("utf-8")
         crib_len = len(crib)
-        max_offset = len_ct - crib_len + 1
+        max_offset = len_ct - crib_len + 1  # +1 since range is exclusive
 
-        # Debugging purposes
+        # # Debugging purposes
         # print(f"Crib dragging '{crib}' across {labels}")
 
         for offset in range(max_offset):
             xor_slices = generate_xor_slices(xor_data, offset, crib_len)
-            if (True in potential_match(xor_slices, crib, offset, dict)):
-                matches.add(crib)
-                break
+            matches_found = potential_match(xor_slices, crib, offset, dict)
+            matches.extend(matches_found)
     print("Finished looking for potential matches!")
     print(f"Found {len(matches)} potential matches!")
-    return len(matches)
+    return matches

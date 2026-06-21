@@ -4,9 +4,9 @@ from itertools import islice
 
 def split_set(s, n):
     """ Splits a set into `n` roughly equal contiguous parts. """
-    s = list(s)  # Convert set to list to maintain order
+    s = list(s)
     chunk_size = len(s) // n
-    remainder = len(s) % n  # Some chunks may need an extra word
+    remainder = len(s) % n
 
     chunks = []
     start = 0
@@ -28,16 +28,41 @@ def load_words(file_path, previous_words=[]):
     :return: A set containing all words from the file.
     """
     words = set()
-    with open(file_path, 'rb') as f:  # Open in binary mode to catch decoding errors
-        for line_number, line in enumerate(f, 1):
+    with open(file_path, 'rb') as infile:
+        for line in infile:
             try:
-                decoded_line = line.decode('utf-8').strip()  # Decode the line
-                if decoded_line and not any(decoded_line in words_set for words_set in previous_words) and len(decoded_line) > 2:
-                    words.add(decoded_line.lower())
+                # Decode to utf-8 and remove any extra whitespace
+                decoded_line = line.decode('utf-8').strip().lower()
+                seen = any(
+                    decoded_line in words_set for words_set in previous_words)
+                if decoded_line and len(decoded_line) > 2 and not seen:
+                    words.add(decoded_line)
             except UnicodeDecodeError:
-                # print(f"Skipping invalid word on line {line_number}: {line}")
-                continue  # Skip the problematic line
+                continue
     return words
+
+
+def load_short_words(file_path):
+    """
+    Load the 1-2 letter words from a SCOWL list.
+
+    `load_words` deliberately drops these, but the token validator needs them to
+    segment a token like 'of?ej' into 'of' + 'ej' and reject the impossible ones.
+    The single-letter words 'a', 'i', 'o' are always included.
+
+    :param file_path: Path to the SCOWL word list file.
+    :return: A set of lowercase words of length 1 or 2.
+    """
+    short = {'a', 'i', 'o'}
+    with open(file_path, 'rb') as infile:
+        for line in infile:
+            try:
+                word = line.decode('utf-8').strip().lower()
+            except UnicodeDecodeError:
+                continue
+            if 1 <= len(word) <= 2 and word.isalpha():
+                short.add(word)
+    return short
 
 
 def read_ciphertexts(filename):
@@ -47,18 +72,16 @@ def read_ciphertexts(filename):
     """
     ciphertexts = []
 
-    with open(filename, 'r') as f:
-        for line in f:
+    with open(filename, 'r') as infile:
+        for line in infile:
             line = line.strip()
 
-            # Skip empty lines
             if not line:
                 continue
 
-            # If it's a valid hex string, convert to bytes
             if is_hex_string(line):
                 ciphertexts.append(bytes.fromhex(line))
-            # Otherwise, treat as a binary string
+
             elif len(line) % 8 == 0 and all(c in '01' for c in line):
                 byte_array = [int(line[i:i+8], 2)
                               for i in range(0, len(line), 8)]
@@ -124,14 +147,41 @@ def is_printable_ascii(s):
     return True
 
 
-def valid_string(send_command, slice, word, dict):
-    is_word = word in dict
-    if not is_printable_ascii(word) or len(send_command(
-            "search", word.decode("utf-8"))) == 0:
+def valid_string(send_command, slice, word, dict, type_="suffix"):
+    if not is_printable_ascii(word):
+        return False
+    # `word` is bytes; the dictionary holds str, so decode before lookup.
+    word_str = word.decode("utf-8")
+    is_word = word_str in dict
+    # Use "count" (returns a single number) rather than "search" (returns the
+    # full list of matching word indices) -- we only need existence here.
+    if type_ == "suffix" and send_command(
+            "count", "suffix", word_str)["count"] == 0:
+        return False
+    elif type_ == "prefix" and send_command(
+            "count", "prefix", word_str)["count"] == 0:
         return False
     idx = slice.find(word)
-    if slice[idx-1] == " " and\
-            slice[idx + len(word) - 1] == " " and\
-            not is_word:
+    if idx != -1:
+        # Indexing bytes yields ints, so compare against ord(" ").
+        # Only treat a boundary as a space when it exists *inside* the slice;
+        # at the slice edges the token may simply continue out of view.
+        before_is_space = idx > 0 and slice[idx - 1] == ord(" ")
+        after = idx + len(word)
+        after_is_space = after < len(slice) and slice[after] == ord(" ")
+        # A fully space-delimited token that is not a real word is gibberish.
+        if before_is_space and after_is_space and not is_word:
+            return False
+    return True
+
+
+def valid_res(send_command, word, type_="suffix"):
+    if not is_printable_ascii(word):
+        return False
+    if type_ == "suffix" and send_command(
+            "count", "suffix", word.decode("utf-8"))["count"] == 0:
+        return False
+    elif type_ == "prefix" and send_command(
+            "count", "prefix", word.decode("utf-8"))["count"] == 0:
         return False
     return True
